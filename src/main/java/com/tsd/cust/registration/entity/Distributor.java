@@ -22,7 +22,7 @@ import lombok.ToString;
 @Entity
 public class Distributor {
 	
-    @Id
+	@Id
     private Long id;
     
     private boolean active;
@@ -31,11 +31,13 @@ public class Distributor {
     private String last_name;
     private String email;
     private String mobile;
+    private String pannum;
+    private String gstin;
+    private String companyName;
     
     private Timestamp created_on;
     private Timestamp last_updated_on;
     private String created_by;
     private String last_updated_by;
-    
     
 }

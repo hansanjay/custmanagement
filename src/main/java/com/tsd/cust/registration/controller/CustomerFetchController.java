@@ -23,36 +23,57 @@ public class CustomerFetchController {
 	@Autowired
 	CustomerRegService customerRegService;
 
-	@GetMapping(path = "/fetch/{distid}/{userType}", produces = MediaType.APPLICATION_JSON_VALUE)
+	@GetMapping(path = "/fetch/{distid}/{userType}/{page}/{size}", produces = MediaType.APPLICATION_JSON_VALUE)
 	@Operation(summary = "Fetch all Customer", description = "Retrieve a list of all Customer")
 	public ResponseEntity<?> getCustomers(@PathVariable("distid") String distid,
-			@PathVariable("userType") String userType){
+			@PathVariable("userType") String userType, @PathVariable("page") String page,
+			@PathVariable("size") String size) {
 		if ("2".equals(userType)) {
-			return customerRegService.fetchAllCustomers(distid);
+			return customerRegService.fetchAllCustomers(distid, page, size);
 		} else {
-			return customerRegService.fetchAllAgents(distid);
+			return customerRegService.fetchAllAgents(distid, page, size);
 		}
 	}
-	
-	@GetMapping(path = "/fetch/json/{value}/{userType}", produces = MediaType.APPLICATION_JSON_VALUE)
+
+	@GetMapping(path = "/fetch/json/{distid}/{value}/{userType}", produces = MediaType.APPLICATION_JSON_VALUE)
 	@Operation(summary = "Fetch all Customer", description = "Retrieve a list of all Customer")
-	public ResponseEntity<?> getCustomersJSONObject(@PathVariable("value") String value,@PathVariable("userType") String userType){
+	public ResponseEntity<?> getCustomersJSONObject(@PathVariable("distid") String distid,@PathVariable("value") String value,
+			@PathVariable("userType") String userType) {
 		if ("2".equals(userType)) {
-			return customerRegService.getCustomersJSONObject(value);
+			return customerRegService.getCustomersJSONObject(value,distid);
 		} else {
-			return customerRegService.getAgentJSONObject(value);
+			return customerRegService.getAgentJSONObject(value,distid);
 		}
 	}
-	
+
 	@GetMapping(path = "/fetchAgentByCustbyId/{agentid}", produces = MediaType.APPLICATION_JSON_VALUE)
 	@Operation(summary = "Fetch Customer based on Agent ID", description = "Retrieve Customer based on Agent ID")
-	public ResponseEntity<?> getAgentsfetchById(@PathVariable("agentid") String agentid){ 
+	public ResponseEntity<?> getAgentsfetchById(@PathVariable("agentid") String agentid) {
 		return customerRegService.getAgentsfetchById(agentid);
 	}
-	
+
 	@GetMapping(path = "/fetchCustByAgentId/{custid}", produces = MediaType.APPLICATION_JSON_VALUE)
 	@Operation(summary = "Fetch Agent based on Customer ID", description = "Retrieve Agent based on Customer ID")
-	public ResponseEntity<?> getCustfetchById(@PathVariable("custid") String custid){
+	public ResponseEntity<?> getCustfetchById(@PathVariable("custid") String custid) {
 		return customerRegService.getCustomersfetchById(custid);
 	}
+
+	@GetMapping(path = "/fetch/{userType}/{filter}/{value}", produces = MediaType.APPLICATION_JSON_VALUE)
+	@Operation(summary = "Fetch all Customer", description = "Retrieve a list of all Customer")
+	public ResponseEntity<?> getCustomerDetail(@PathVariable("userType") String userType, @PathVariable("filter") String filter,
+			@PathVariable("value") String value) {
+		if ("2".equals(userType)) {
+			return customerRegService.fetchCustDetails(filter, value);
+		} else {
+			return customerRegService.fetchAgentDetails(filter, value);
+		}
+	}
+
+	@GetMapping(path = "/details/{userType}/{userId}", produces = MediaType.APPLICATION_JSON_VALUE)
+	@Operation(summary = "Fetch all Customer", description = "Retrieve a list of all Customer")
+	public ResponseEntity<?> getUserDetail(@PathVariable("userType") String userType,
+			@PathVariable("userId") String userId) {
+		return customerRegService.getUserDetail(userType, userId);
+	}
+
 }

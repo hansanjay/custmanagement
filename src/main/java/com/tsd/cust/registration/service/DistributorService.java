@@ -22,6 +22,8 @@ import org.tsd.sdk.request.DistributorReq;
 import org.tsd.sdk.request.UserReq;
 import org.tsd.sdk.response.JsonSuccessResponse;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tsd.cust.registration.entity.Distributor;
@@ -44,11 +46,12 @@ public class DistributorService {
 	@Autowired
 	private RestTemplate restTemplate;
 	
+	private final ObjectMapper objectMapper = new ObjectMapper();
+	
 	@Transactional
 	@SneakyThrows
 	public ResponseEntity<?> saveDistributor(DistributorReq distributorReq) {
 		ResponseEntity<?> userResponse = saveUserData(distributorReq);
-		ObjectMapper objectMapper = new ObjectMapper();
         JsonNode jsonNode = objectMapper.readTree(userResponse.getBody().toString());
         int successCode = jsonNode.get("success_code").asInt();
 		if (successCode == 302) {
@@ -56,7 +59,6 @@ public class DistributorService {
 		}
 		JsonNode dataNode = jsonNode.path("data");
 		Long userId = dataNode.path("id").asLong();
-		System.out.println(jsonNode.get("data.id"));
 		
 		Distributor distributor = Distributor.builder()
 				.id(userId)
@@ -69,7 +71,11 @@ public class DistributorService {
 				.created_by(distributorReq.getCreated_by())
 				.created_on(Timestamp.valueOf(LocalDateTime.now()))
 				.last_updated_by(null)
-				.last_updated_on(null).build();
+				.last_updated_on(null)
+				.gstin(distributorReq.getGstin())
+				.pannum(distributorReq.getPannum())
+				.companyName(distributorReq.getCompanyName())
+				.build();
 		
 		distributor = distributorRepo.save(distributor);
 		ResponseEntity<?> addresponse = saveDistributorAddress(distributorReq.getMobile(), distributorReq.getAddressReq());
@@ -80,18 +86,46 @@ public class DistributorService {
 	
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	@SneakyThrows
-	public ResponseEntity<?> fetchAllDistributor(String filter, String value) {
-		Distributor distributor = null;
+	public ResponseEntity<?> fetchDistributor(String filter, String value) {
 		switch (filter) {
 		case "mobile":
-			distributor = distributorRepo.findByMobile(value);
-			return ResponseEntity.ok(JsonSuccessResponse.ok("Success", 200, distributor));
+			Distributor distributor = distributorRepo.findByMobile(value);
+			DistributorReq distributorReq = copyEntityToDTO(distributor);
+			AddressReq addressReq = getDistAddressDetails(distributor.getMobile());
+			distributorReq.setAddressReq(addressReq);
+			return ResponseEntity.ok(JsonSuccessResponse.ok("Success", 200, distributorReq));
 		case "email":
 			distributor = distributorRepo.findByEmail(value);
-			return ResponseEntity.ok(JsonSuccessResponse.ok("Success", 200, distributor));
+			distributorReq = copyEntityToDTO(distributor);
+			addressReq = getDistAddressDetails(distributor.getMobile());
+			distributorReq.setAddressReq(addressReq);
+			return ResponseEntity.ok(JsonSuccessResponse.ok("Success", 200, distributorReq));
 		default:
 			return ResponseEntity.ok(JsonSuccessResponse.ok("No match found", 404, null));
 		}
+	}
+
+	private AddressReq getDistAddressDetails(String mobile) throws JsonProcessingException, JsonMappingException {
+		ResponseEntity<?> response = fetchAddressByMobileNumber(mobile);
+		JsonNode jsonNode = objectMapper.readTree(response.getBody().toString());
+		JsonNode dataNode = jsonNode.path("data");
+		AddressReq addressReq = objectMapper.treeToValue(dataNode, AddressReq.class);
+		return addressReq;
+	}
+
+	private DistributorReq copyEntityToDTO(Distributor distributor) {
+		return DistributorReq.builder()
+				.first_name(distributor.getFirst_name())
+				.last_name(distributor.getLast_name())
+				.active(distributor.isActive())
+				.enabled(distributor.isEnabled())
+				.email(distributor.getEmail())
+				.mobile(distributor.getMobile())
+				.pannum(distributor.getPannum())
+				.gstin(distributor.getGstin())
+				.companyCode(distributor.getCompanyName())
+				.companyName(distributor.getCompanyName())
+				.build();
 	}
 
 	public ResponseEntity<?> fectchAllDistributors(String page, String size) {
@@ -122,9 +156,16 @@ public class DistributorService {
 		
 		distributor.setLast_updated_by(distributorReq.getLast_updated_by());
 		distributor.setLast_updated_on(Timestamp.valueOf(LocalDateTime.now()));
+		
+		distributor.setGstin(distributorReq.getGstin());
+		distributor.setPannum(distributorReq.getPannum());
+		distributor.setCompanyName(distributorReq.getCompanyName());
 
 		distributorRepo.save(distributor);
-		return ResponseEntity.ok(JsonSuccessResponse.ok("Distributor updated successfully", 200, distributor));
+		
+		ResponseEntity<?> addresponse = upDateDistributorAddress(distributorReq.getMobile(), distributorReq.getAddressReq());
+		logger.info("Address updated successfully "+addresponse);
+		return ResponseEntity.ok(JsonSuccessResponse.ok("Distributor updated successfully", 200, distributorReq));
 	}
 	
 	@Transactional
@@ -134,6 +175,16 @@ public class DistributorService {
 		HttpHeaders headers = new HttpHeaders();
 		HttpEntity<AddressReq> addReq = new HttpEntity<>(addressReq, headers);
 		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, addReq, String.class);
+		return response;
+	}
+	
+	@Transactional
+	@SneakyThrows
+	private ResponseEntity<?> upDateDistributorAddress(String mobile, AddressReq addressReq) {
+		String url = "http://localhost:8184/api/v1/tsd/add/modify/"+mobile;
+		HttpHeaders headers = new HttpHeaders();
+		HttpEntity<AddressReq> addReq = new HttpEntity<>(addressReq, headers);
+		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.PUT, addReq, String.class);
 		return response;
 	}
 	
@@ -153,5 +204,16 @@ public class DistributorService {
 		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, userObject, String.class);
 		return response;
 	}
+	
+	private ResponseEntity<?> fetchAddressByMobileNumber(String mobile) {
+        try {
+        	String url = "http://localhost:8184/api/v1/tsd/add/fetch/"+mobile;
+        	ResponseEntity<String> response = restTemplate.getForEntity(url, String.class, mobile);
+        	return response;
+        } catch (Exception e) {
+            System.err.println("Error calling Address API: " + e.getMessage());
+            return (ResponseEntity<?>) ResponseEntity.notFound();
+        }
+    }
 	
 }

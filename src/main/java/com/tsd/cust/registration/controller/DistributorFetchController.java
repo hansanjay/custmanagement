@@ -26,8 +26,8 @@ public class DistributorFetchController {
 	@GetMapping(path = "/fetch/{filter}/{value}",
 			produces = MediaType.APPLICATION_JSON_VALUE)
 	@Operation(summary = "Fetch all distributors", description = "Retrieve a list of all distributors")
-	public ResponseEntity<?> getdistributors(@PathVariable("filter") String filter,@PathVariable("value") String value){
-		return distributorService.fetchAllDistributor(filter,value);
+	public ResponseEntity<?> fetchDistributor(@PathVariable("filter") String filter,@PathVariable("value") String value){
+		return distributorService.fetchDistributor(filter,value);
 	}
 	
 	@GetMapping(path = "/fetchAll/{page}/{size}",produces = MediaType.APPLICATION_JSON_VALUE)
